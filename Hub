@@ -1,0 +1,101 @@
+local TS = game:GetService("TweenService")
+local CG = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+pcall(function() CG.PRG:Destroy() end)
+
+-- ID hình ảnh & ID game mục tiêu của bảng này
+local TargetPlaceId = 128683354289764
+
+local Gui = Instance.new("ScreenGui", CG)
+Gui.Name = "PRG"
+
+local Main = Instance.new("Frame", Gui)
+Main.Size = UDim2.new(0, 410, 0, 100)
+Main.Position = UDim2.new(0.5, -205, 0.5, -50)
+Main.BackgroundColor3 = Color3.fromRGB(16, 17, 22)
+Main.Active, Main.Draggable = true, true
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
+
+local Stroke = Instance.new("UIStroke", Main)
+Stroke.Thickness = 1.5
+Stroke.Color = Color3.fromRGB(0, 220, 150)
+
+-- Hình vuông lấy ảnh trực tiếp từ TargetPlaceId (cao 80px)
+local Icon = Instance.new("ImageLabel", Main)
+Icon.Size = UDim2.new(0, 80, 0, 80)
+Icon.Position = UDim2.new(0, 10, 0, 10)
+Icon.Image = "rbxthumb://type=Asset&id=" .. tostring(TargetPlaceId) .. "&w=150&h=150"
+Icon.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+Instance.new("UICorner", Icon).CornerRadius = UDim.new(0, 8)
+
+-- Text tiêu đề
+local Title = Instance.new("TextLabel", Main)
+Title.Size = UDim2.new(0, 190, 0, 80)
+Title.Position = UDim2.new(0, 100, 0, 10)
+Title.BackgroundTransparency = 1
+Title.Text = "Power Rng Script (No key)"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 15
+Title.TextWrapped = true
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Hàm tạo nút có animation (mỗi nút cao 37px + 6px hở = 80px)
+local function MakeBtn(txt, y, col)
+    local b = Instance.new("TextButton", Main)
+    b.Size = UDim2.new(0, 96, 0, 37)
+    b.Position = UDim2.new(1, -106, 0, y)
+    b.BackgroundColor3 = col
+    b.Text = txt
+    b.TextColor3 = Color3.new(1, 1, 1)
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 14
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 7)
+    b.MouseEnter:Connect(function() TS:Create(b, TweenInfo.new(0.15), {BackgroundTransparency = 0.2}):Play() end)
+    b.MouseLeave:Connect(function() TS:Create(b, TweenInfo.new(0.15), {BackgroundTransparency = 0}):Play() end)
+    return b
+end
+
+local CopyBtn = MakeBtn("Copy", 10, Color3.fromRGB(45, 48, 60))
+local ExecBtn = MakeBtn("Execute", 53, Color3.fromRGB(0, 185, 125))
+
+-- Animation mở bảng
+Main.BackgroundTransparency = 1
+TS:Create(Main, TweenInfo.new(0.35), {BackgroundTransparency = 0}):Play()
+
+-- Thay link script của bạn vào dòng dưới:
+local Url = "https://pastefy.app/NbbWCnEn/raw"
+
+CopyBtn.MouseButton1Click:Connect(function()
+    if setclipboard then setclipboard('loadstring(game:HttpGet("'..Url..'"))()') end
+    CopyBtn.Text = "Copied!"
+    task.wait(1)
+    CopyBtn.Text = "Copy"
+end)
+
+ExecBtn.MouseButton1Click:Connect(function()
+    -- Bước 1: Kiểm tra xác nhận ID game khi bấm Execute
+    ExecBtn.Text = "Checking..."
+    task.wait(0.4)
+    
+    if game.PlaceId ~= TargetPlaceId then
+        ExecBtn.Text = "Wrong ID!"
+        ExecBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+        task.wait(0.4)
+        Players.LocalPlayer:Kick("Not Support [🙅]")
+        return
+    end
+
+    -- Bước 2: Đúng ID game thì mới tiến hành Load script
+    ExecBtn.Text = "Loading..."
+    local ok = pcall(function() task.spawn(loadstring(game:HttpGet(Url))) end)
+    if ok then
+        ExecBtn.Text = "Done!"
+        task.wait(0.5)
+        Gui:Destroy()
+    else
+        ExecBtn.Text = "Error!"
+        task.wait(1)
+        ExecBtn.Text = "Execute"
+    end
+end)

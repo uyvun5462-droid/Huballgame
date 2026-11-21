@@ -1,101 +1,377 @@
 local TS = game:GetService("TweenService")
 local CG = game:GetService("CoreGui")
 local Players = game:GetService("Players")
-pcall(function() CG.PRG:Destroy() end)
+local TeleportService = game:GetService("TeleportService")
+local UIS = game:GetService("UserInputService")
 
--- ID hình ảnh & ID game mục tiêu của bảng này
-local TargetPlaceId = 128683354289764
+pcall(function() CG.PRG:Destroy() end)
 
 local Gui = Instance.new("ScreenGui", CG)
 Gui.Name = "PRG"
+Gui.ResetOnSpawn = false
+Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
+-- Khung chính (Main Container)
 local Main = Instance.new("Frame", Gui)
-Main.Size = UDim2.new(0, 410, 0, 100)
-Main.Position = UDim2.new(0.5, -205, 0.5, -50)
+Main.Size = UDim2.new(0, 440, 0, 250)
+Main.Position = UDim2.new(0.5, -220, 0.5, -125)
 Main.BackgroundColor3 = Color3.fromRGB(16, 17, 22)
-Main.Active, Main.Draggable = true, true
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
+Main.ClipsDescendants = true
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 
 local Stroke = Instance.new("UIStroke", Main)
 Stroke.Thickness = 1.5
 Stroke.Color = Color3.fromRGB(0, 220, 150)
 
--- Hình vuông lấy ảnh trực tiếp từ TargetPlaceId (cao 80px)
-local Icon = Instance.new("ImageLabel", Main)
-Icon.Size = UDim2.new(0, 80, 0, 80)
-Icon.Position = UDim2.new(0, 10, 0, 10)
-Icon.Image = "rbxthumb://type=Asset&id=" .. tostring(TargetPlaceId) .. "&w=150&h=150"
-Icon.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-Instance.new("UICorner", Icon).CornerRadius = UDim.new(0, 8)
+-- Hệ thống kéo GUI mượt mà (Hỗ trợ PC & Mobile)
+local function MakeDraggable(frame)
+	local dragging, dragInput, dragStart, startPos
+	frame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or
+		   input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = frame.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+	frame.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or
+		   input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+	UIS.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			TS:Create(frame, TweenInfo.new(0.06, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+				Position = UDim2.new(
+					startPos.X.Scale,
+					startPos.X.Offset + delta.X,
+					startPos.Y.Scale,
+					startPos.Y.Offset + delta.Y
+				)
+			}):Play()
+		end
+	end)
+end
+MakeDraggable(Main)
 
--- Text tiêu đề
-local Title = Instance.new("TextLabel", Main)
-Title.Size = UDim2.new(0, 190, 0, 80)
-Title.Position = UDim2.new(0, 100, 0, 10)
-Title.BackgroundTransparency = 1
-Title.Text = "Power Rng Script (No key)"
-Title.TextColor3 = Color3.new(1, 1, 1)
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 15
-Title.TextWrapped = true
-Title.TextXAlignment = Enum.TextXAlignment.Left
+-- Thanh điều hướng Tab ở trên cùng
+local TabBar = Instance.new("Frame", Main)
+TabBar.Size = UDim2.new(1, -20, 0, 36)
+TabBar.Position = UDim2.new(0, 10, 0, 10)
+TabBar.BackgroundColor3 = Color3.fromRGB(24, 26, 34)
+Instance.new("UICorner", TabBar).CornerRadius = UDim.new(0, 8)
 
--- Hàm tạo nút có animation (mỗi nút cao 37px + 6px hở = 80px)
-local function MakeBtn(txt, y, col)
-    local b = Instance.new("TextButton", Main)
-    b.Size = UDim2.new(0, 96, 0, 37)
-    b.Position = UDim2.new(1, -106, 0, y)
-    b.BackgroundColor3 = col
-    b.Text = txt
-    b.TextColor3 = Color3.new(1, 1, 1)
-    b.Font = Enum.Font.GothamBold
-    b.TextSize = 14
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 7)
-    b.MouseEnter:Connect(function() TS:Create(b, TweenInfo.new(0.15), {BackgroundTransparency = 0.2}):Play() end)
-    b.MouseLeave:Connect(function() TS:Create(b, TweenInfo.new(0.15), {BackgroundTransparency = 0}):Play() end)
-    return b
+-- Thanh trượt highlight dưới Tab đang chọn
+local TabIndicator = Instance.new("Frame", TabBar)
+TabIndicator.Size = UDim2.new(0.5, -6, 1, -6)
+TabIndicator.Position = UDim2.new(0, 3, 0, 3)
+TabIndicator.BackgroundColor3 = Color3.fromRGB(0, 185, 125)
+Instance.new("UICorner", TabIndicator).CornerRadius = UDim.new(0, 6)
+
+local function CreateTabBtn(text, posScale)
+	local btn = Instance.new("TextButton", TabBar)
+	btn.Size = UDim2.new(0.5, 0, 1, 0)
+	btn.Position = UDim2.new(posScale, 0, 0, 0)
+	btn.BackgroundTransparency = 1
+	btn.Text = text
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 14
+	btn.ZIndex = 2
+	return btn
 end
 
-local CopyBtn = MakeBtn("Copy", 10, Color3.fromRGB(45, 48, 60))
-local ExecBtn = MakeBtn("Execute", 53, Color3.fromRGB(0, 185, 125))
+local ScriptTabBtn = CreateTabBtn("Script", 0)
+local LogTabBtn = CreateTabBtn("Update Log", 0.5)
 
--- Animation mở bảng
+-- Khung chứa nội dung các Tab
+local ContentHolder = Instance.new("Frame", Main)
+ContentHolder.Size = UDim2.new(1, -20, 1, -58)
+ContentHolder.Position = UDim2.new(0, 10, 0, 52)
+ContentHolder.BackgroundTransparency = 1
+ContentHolder.ClipsDescendants = true
+
+-- Hàm tạo ScrollingFrame chuẩn đẹp
+local function CreateScrollPage(xScale)
+	local sf = Instance.new("ScrollingFrame", ContentHolder)
+	sf.Size = UDim2.new(1, 0, 1, 0)
+	sf.Position = UDim2.new(xScale, 0, 0, 0)
+	sf.BackgroundTransparency = 1
+	sf.BorderSizePixel = 0
+	sf.ScrollBarThickness = 4
+	sf.ScrollBarImageColor3 = Color3.fromRGB(0, 220, 150)
+	sf.CanvasSize = UDim2.new(0, 0, 0, 0)
+	sf.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+	local layout = Instance.new("UIListLayout", sf)
+	layout.Padding = UDim.new(0, 8)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+	local pad = Instance.new("UIPadding", sf)
+	pad.PaddingRight = UDim.new(0, 6)
+	pad.PaddingBottom = UDim.new(0, 4)
+
+	return sf
+end
+
+local ScriptPage = CreateScrollPage(0)
+local LogPage = CreateScrollPage(1)
+
+-- Hiệu ứng chuyển Tab mượt mà
+local function SwitchTab(tabIndex)
+	local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+	if tabIndex == 1 then
+		TS:Create(TabIndicator, tweenInfo, {Position = UDim2.new(0, 3, 0, 3)}):Play()
+		TS:Create(ScriptPage, tweenInfo, {Position = UDim2.new(0, 0, 0, 0)}):Play()
+		TS:Create(LogPage, tweenInfo, {Position = UDim2.new(1, 0, 0, 0)}):Play()
+		ScriptTabBtn.TextColor3 = Color3.new(1, 1, 1)
+		LogTabBtn.TextColor3 = Color3.fromRGB(160, 165, 180)
+	else
+		TS:Create(TabIndicator, tweenInfo, {Position = UDim2.new(0.5, 3, 0, 3)}):Play()
+		TS:Create(ScriptPage, tweenInfo, {Position = UDim2.new(-1, 0, 0, 0)}):Play()
+		TS:Create(LogPage, tweenInfo, {Position = UDim2.new(0, 0, 0, 0)}):Play()
+		ScriptTabBtn.TextColor3 = Color3.fromRGB(160, 165, 180)
+		LogTabBtn.TextColor3 = Color3.new(1, 1, 1)
+	end
+end
+
+LogTabBtn.TextColor3 = Color3.fromRGB(160, 165, 180)
+ScriptTabBtn.MouseButton1Click:Connect(function() SwitchTab(1) end)
+LogTabBtn.MouseButton1Click:Connect(function() SwitchTab(2) end)
+
+-- Hàm thêm thẻ Script vào Tab Script (Hỗ trợ 1 hoặc nhiều PlaceId)
+local function AddScriptCard(titleText, placeIds, scriptUrl)
+	local idList = type(placeIds) == "table" and placeIds or {placeIds}
+	local mainId = idList[1]
+
+	local Card = Instance.new("Frame", ScriptPage)
+	Card.Size = UDim2.new(1, 0, 0, 116)
+	Card.BackgroundColor3 = Color3.fromRGB(23, 25, 33)
+	Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 10)
+
+	local CardStroke = Instance.new("UIStroke", Card)
+	CardStroke.Thickness = 1
+	CardStroke.Color = Color3.fromRGB(40, 44, 58)
+
+	-- Ảnh game bên trái (Lấy theo ID đầu tiên)
+	local Icon = Instance.new("ImageLabel", Card)
+	Icon.Size = UDim2.new(0, 96, 0, 96)
+	Icon.Position = UDim2.new(0, 10, 0, 10)
+	Icon.Image = "rbxthumb://type=Asset&id=" .. tostring(mainId) .. "&w=150&h=150"
+	Icon.BackgroundColor3 = Color3.fromRGB(30, 32, 40)
+	Instance.new("UICorner", Icon).CornerRadius = UDim.new(0, 8)
+
+	-- Tên Script ở giữa (phía trên)
+	local Title = Instance.new("TextLabel", Card)
+	Title.Size = UDim2.new(1, -220, 0, 50)
+	Title.Position = UDim2.new(0, 116, 0, 12)
+	Title.BackgroundTransparency = 1
+	Title.Text = titleText
+	Title.TextColor3 = Color3.new(1, 1, 1)
+	Title.Font = Enum.Font.GothamBold
+	Title.TextSize = 14
+	Title.TextWrapped = true
+	Title.TextXAlignment = Enum.TextXAlignment.Left
+	Title.TextYAlignment = Enum.TextYAlignment.Top
+
+	-- Text hiển thị danh sách ID Game ở giữa (phía dưới tên)
+	local strIds = {}
+	for _, v in ipairs(idList) do
+		table.insert(strIds, tostring(v))
+	end
+
+	local IdLabel = Instance.new("TextLabel", Card)
+	IdLabel.Size = UDim2.new(1, -220, 0, 36)
+	IdLabel.Position = UDim2.new(0, 116, 0, 66)
+	IdLabel.BackgroundTransparency = 1
+	IdLabel.Text = "ID: " .. table.concat(strIds, "\n")
+	IdLabel.TextColor3 = Color3.fromRGB(0, 220, 150)
+	IdLabel.Font = Enum.Font.GothamSemibold
+	IdLabel.TextSize = 11
+	IdLabel.TextWrapped = true
+	IdLabel.TextXAlignment = Enum.TextXAlignment.Left
+	IdLabel.TextYAlignment = Enum.TextYAlignment.Top
+
+	-- Hàm tạo 3 nút bên phải (Copy -> Join -> Execute)
+	local function MakeBtn(txt, yPos, col)
+		local b = Instance.new("TextButton", Card)
+		b.Size = UDim2.new(0, 88, 0, 29)
+		b.Position = UDim2.new(1, -98, 0, yPos)
+		b.BackgroundColor3 = col
+		b.Text = txt
+		b.TextColor3 = Color3.new(1, 1, 1)
+		b.Font = Enum.Font.GothamBold
+		b.TextSize = 13
+		Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+
+		b.MouseEnter:Connect(function()
+			TS:Create(b, TweenInfo.new(0.15), {BackgroundTransparency = 0.2}):Play()
+		end)
+		b.MouseLeave:Connect(function()
+			TS:Create(b, TweenInfo.new(0.15), {BackgroundTransparency = 0}):Play()
+		end)
+		return b
+	end
+	local CopyBtn = MakeBtn("Copy", 10, Color3.fromRGB(45, 48, 60))
+	local JoinBtn = MakeBtn("Join", 43.5, Color3.fromRGB(0, 135, 220))
+	local ExecBtn = MakeBtn("Execute", 77, Color3.fromRGB(0, 185, 125))
+
+	-- Chức năng Copy
+	CopyBtn.MouseButton1Click:Connect(function()
+		if setclipboard then
+			setclipboard('loadstring(game:HttpGet("' .. scriptUrl .. '"))()')
+		end
+		CopyBtn.Text = "Copied!"
+		task.wait(1)
+		CopyBtn.Text = "Copy"
+	end)
+
+	-- Chức năng Join game (Vào ID chính đầu tiên)
+	JoinBtn.MouseButton1Click:Connect(function()
+		local targetId = tonumber(mainId)
+		if not targetId then
+			JoinBtn.Text = "Invalid ID"
+			task.wait(1)
+			JoinBtn.Text = "Join"
+			return
+		end
+		for _, id in ipairs(idList) do
+			if game.PlaceId == tonumber(id) then
+				JoinBtn.Text = "In Game!"
+				task.wait(1)
+				JoinBtn.Text = "Join"
+				return
+			end
+		end
+
+		JoinBtn.Text = "Joining..."
+		local lp = Players.LocalPlayer
+		local ok1 = pcall(function()
+			local options = Instance.new("TeleportOptions")
+			TeleportService:TeleportAsync(targetId, {lp}, options)
+		end)
+		if not ok1 then
+			local ok2 = pcall(function()
+				TeleportService:Teleport(targetId, lp)
+			end)
+			if not ok2 then
+				JoinBtn.Text = "Error!"
+				task.wait(1.2)
+				JoinBtn.Text = "Join"
+				return
+			end
+		end
+
+		task.wait(3)
+		if JoinBtn and JoinBtn.Parent then
+			JoinBtn.Text = "Join"
+		end
+	end)
+
+	-- Chức năng Execute (Kiểm tra trùng khớp 1 trong các ID là chạy)
+	ExecBtn.MouseButton1Click:Connect(function()
+		ExecBtn.Text = "Checking..."
+		task.wait(0.3)
+
+		local isSupported = false
+		for _, id in ipairs(idList) do
+			if game.PlaceId == tonumber(id) then
+				isSupported = true
+				break
+			end
+		end
+
+		if not isSupported then
+			ExecBtn.Text = "Wrong ID!"
+			ExecBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+			task.wait(0.4)
+			Players.LocalPlayer:Kick("Not Support [🙅]")
+			return
+		end
+
+		ExecBtn.Text = "Loading..."
+		local ok, err = pcall(function()
+			local code = nil
+			local s1, r1 = pcall(function() return game:HttpGet(scriptUrl) end)
+			if s1 and type(r1) == "string" and #r1 > 0 then
+				code = r1
+			else
+				local req = request or http_request or (syn and syn.request) or (fluxus and fluxus.request)
+				if req then
+					local res = req({Url = scriptUrl, Method = "GET"})
+					if res and res.Body then
+						code = res.Body
+					end
+				end
+			end
+
+			assert(code and #code > 0, "Khong tai duoc noi dung tu link")
+			local func, loadErr = loadstring(code)
+			assert(type(func) == "function", loadErr or "Loi cu phap script")
+			task.spawn(func)
+		end)
+
+		if ok then
+			ExecBtn.Text = "Done!"
+			task.wait(0.5)
+			Gui:Destroy()
+		else
+			warn("[PRG Execute Error]:", err)
+			ExecBtn.Text = "Error!"
+			task.wait(1.2)
+			ExecBtn.Text = "Execute"
+		end
+	end)
+end
+
+-- Hàm thêm dòng thông báo vào Tab Update Log
+local function AddUpdateLog(versionTitle, detailText)
+	local LogCard = Instance.new("Frame", LogPage)
+	LogCard.Size = UDim2.new(1, 0, 0, 62)
+	LogCard.BackgroundColor3 = Color3.fromRGB(23, 25, 33)
+	Instance.new("UICorner", LogCard).CornerRadius = UDim.new(0, 8)
+
+	local VTitle = Instance.new("TextLabel", LogCard)
+	VTitle.Size = UDim2.new(1, -20, 0, 22)
+	VTitle.Position = UDim2.new(0, 10, 0, 6)
+	VTitle.BackgroundTransparency = 1
+	VTitle.Text = versionTitle
+	VTitle.TextColor3 = Color3.fromRGB(0, 220, 150)
+	VTitle.Font = Enum.Font.GothamBold
+	VTitle.TextSize = 13
+	VTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+	local Detail = Instance.new("TextLabel", LogCard)
+	Detail.Size = UDim2.new(1, -20, 0, 28)
+	Detail.Position = UDim2.new(0, 10, 0, 28)
+	Detail.BackgroundTransparency = 1
+	Detail.Text = detailText
+	Detail.TextColor3 = Color3.fromRGB(210, 215, 225)
+	Detail.Font = Enum.Font.Gotham
+	Detail.TextSize = 12
+	Detail.TextWrapped = true
+	Detail.TextXAlignment = Enum.TextXAlignment.Left
+	Detail.TextYAlignment = Enum.TextYAlignment.Top
+end
+
+-- Dữ liệu Script & Update Log
+AddScriptCard("Power Rng Script (No key)", 128683354289764, "https://pastefy.app/NbbWCnEn/raw")
+AddScriptCard("baking bread to escape script (No key)", {137468201522650, 74381226059959}, "https://pastefy.app/oCdj6XWV/raw")
+
+AddUpdateLog("Update v1.2 (15/10/2026)", "Added Join + more Script!")
+AddUpdateLog("Update v1 (7/10/2026)", "Added Script Execute , Copy!")
+
+-- Animation mở bảng mượt mà
 Main.BackgroundTransparency = 1
-TS:Create(Main, TweenInfo.new(0.35), {BackgroundTransparency = 0}):Play()
-
--- Thay link script của bạn vào dòng dưới:
-local Url = "https://pastefy.app/NbbWCnEn/raw"
-
-CopyBtn.MouseButton1Click:Connect(function()
-    if setclipboard then setclipboard('loadstring(game:HttpGet("'..Url..'"))()') end
-    CopyBtn.Text = "Copied!"
-    task.wait(1)
-    CopyBtn.Text = "Copy"
-end)
-
-ExecBtn.MouseButton1Click:Connect(function()
-    -- Bước 1: Kiểm tra xác nhận ID game khi bấm Execute
-    ExecBtn.Text = "Checking..."
-    task.wait(0.4)
-    
-    if game.PlaceId ~= TargetPlaceId then
-        ExecBtn.Text = "Wrong ID!"
-        ExecBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-        task.wait(0.4)
-        Players.LocalPlayer:Kick("Not Support [🙅]")
-        return
-    end
-
-    -- Bước 2: Đúng ID game thì mới tiến hành Load script
-    ExecBtn.Text = "Loading..."
-    local ok = pcall(function() task.spawn(loadstring(game:HttpGet(Url))) end)
-    if ok then
-        ExecBtn.Text = "Done!"
-        task.wait(0.5)
-        Gui:Destroy()
-    else
-        ExecBtn.Text = "Error!"
-        task.wait(1)
-        ExecBtn.Text = "Execute"
-    end
-end)
+Main.Size = UDim2.new(0, 410, 0, 230)
+TS:Create(Main, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+	BackgroundTransparency = 0,
+	Size = UDim2.new(0, 440, 0, 250)
+}):Play()
